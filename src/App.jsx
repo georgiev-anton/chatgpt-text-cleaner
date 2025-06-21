@@ -100,16 +100,17 @@ const ChatGPTTextCleaner = () => {
     if (inputText.trim()) {
       const result = cleanText(inputText);
       setCleanupResult(result);
+      handleCopy(result.cleanedText);
     } else {
       setCleanupResult(null);
     }
   }, [inputText, cleanText]);
 
-  const handleCopy = async () => {
-    if (!cleanupResult?.cleanedText) return;
+  const handleCopy = async (textToCopy) => {
+    if (!textToCopy) return;
     
     try {
-      await navigator.clipboard.writeText(cleanupResult.cleanedText);
+      await navigator.clipboard.writeText(textToCopy);
       setCopySuccess(true);
       setTimeout(() => setCopySuccess(false), 2000);
     } catch (err) {
@@ -236,7 +237,7 @@ const ChatGPTTextCleaner = () => {
                   
                   <div className="flex space-x-3">
                     <button
-                      onClick={handleCopy}
+                      onClick={() => handleCopy(cleanupResult.cleanedText)}
                       className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
                     >
                       {copySuccess ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
