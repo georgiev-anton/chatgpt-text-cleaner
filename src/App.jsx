@@ -16,7 +16,7 @@ const ChatGPTTextCleaner = () => {
     '\u200D': 'Zero-Width Joiner',
     '\uFEFF': 'Zero-Width No-Break Space (BOM)',
     '\u2003': 'Em Space',
-    '\u2002': 'En Space', 
+    '\u2002': 'En Space',
     '\u2009': 'Thin Space',
     '\u200A': 'Hair Space',
     '\u2060': 'Word Joiner',
@@ -64,7 +64,7 @@ const ChatGPTTextCleaner = () => {
           count
         });
         totalRemoved += count;
-        
+
         // Replace special characters with standard equivalents
         if (char === '\u2014' || char === '\u2013') {
           cleanedText = cleanedText.replace(regex, '-');
@@ -108,7 +108,7 @@ const ChatGPTTextCleaner = () => {
 
   const handleCopy = async (textToCopy) => {
     if (!textToCopy) return;
-    
+
     try {
       await navigator.clipboard.writeText(textToCopy);
       setCopySuccess(true);
@@ -120,7 +120,7 @@ const ChatGPTTextCleaner = () => {
 
   const handleDownload = () => {
     if (!cleanupResult?.cleanedText) return;
-    
+
     const blob = new Blob([cleanupResult.cleanedText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -146,13 +146,13 @@ const ChatGPTTextCleaner = () => {
 
   const visualizeInvisibleChars = (text) => {
     if (!showInvisible) return text;
-    
+
     let visualized = text;
     Object.entries(problematicChars).forEach(([char, name]) => {
       const replacement = `<span class="bg-red-200 text-red-800 px-1 rounded text-xs" title="${name}">[${name.split(' ')[0]}]</span>`;
       visualized = visualized.replace(new RegExp(char, 'g'), replacement);
     });
-    
+
     return visualized;
   };
 
@@ -166,6 +166,9 @@ const ChatGPTTextCleaner = () => {
             </h1>
             <p className="text-gray-600 text-lg">
               Remove hidden Unicode characters and watermarks from ChatGPT-generated text
+            </p>
+            <p className="text-gray-600 text-lg">
+              Message feedback or bug: <a href={'https://x.com/byghoster'}>My X Profile - https://x.com/byghoster</a>
             </p>
           </div>
 
@@ -185,7 +188,7 @@ const ChatGPTTextCleaner = () => {
                   <span className="text-sm text-gray-600">Upload file</span>
                 </label>
               </div>
-              
+
               <div className="space-y-2">
                 <textarea
                   value={inputText}
@@ -193,7 +196,7 @@ const ChatGPTTextCleaner = () => {
                   placeholder="Paste ChatGPT text here..."
                   className="w-full h-40 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
-                
+
                 <div className="flex items-center justify-between">
                   <button
                     onClick={() => setShowInvisible(!showInvisible)}
@@ -202,14 +205,14 @@ const ChatGPTTextCleaner = () => {
                     {showInvisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     <span>{showInvisible ? 'Hide' : 'Show'} invisible characters</span>
                   </button>
-                  
+
                   <span className="text-sm text-gray-500">
                     {inputText.length} characters
                   </span>
                 </div>
-                
+
                 {showInvisible && inputText && (
-                  <div 
+                  <div
                     className="p-4 bg-gray-50 rounded-lg text-sm border max-h-32 overflow-y-auto"
                     dangerouslySetInnerHTML={{ __html: visualizeInvisibleChars(inputText) }}
                   />
@@ -220,7 +223,7 @@ const ChatGPTTextCleaner = () => {
             {/* Right column - Result */}
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-gray-800">Cleaned Text</h2>
-              
+
               {cleanupResult ? (
                 <div className="space-y-4">
                   <textarea
@@ -228,13 +231,13 @@ const ChatGPTTextCleaner = () => {
                     readOnly
                     className="w-full h-40 p-4 border rounded-lg bg-gray-50 resize-none"
                   />
-                  
+
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">
                       {cleanupResult.cleanedText.length} characters
                     </span>
                   </div>
-                  
+
                   <div className="flex space-x-3">
                     <button
                       onClick={() => handleCopy(cleanupResult.cleanedText)}
@@ -243,7 +246,7 @@ const ChatGPTTextCleaner = () => {
                       {copySuccess ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                       <span>{copySuccess ? 'Copied!' : 'Copy'}</span>
                     </button>
-                    
+
                     <button
                       onClick={handleDownload}
                       className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
@@ -252,7 +255,7 @@ const ChatGPTTextCleaner = () => {
                       <span>Download</span>
                     </button>
                   </div>
-                  
+
                   {/* Statistics of removed characters */}
                   {cleanupResult.totalRemoved > 0 && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -273,7 +276,7 @@ const ChatGPTTextCleaner = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   {cleanupResult.totalRemoved === 0 && (
                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
                       <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
@@ -305,7 +308,7 @@ const ChatGPTTextCleaner = () => {
               </div>
             </div>
           </div>
-          
+
           {/* Additional information */}
           <div className="mt-6 bg-gray-50 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">About Hidden Characters in ChatGPT</h3>
@@ -313,14 +316,14 @@ const ChatGPTTextCleaner = () => {
               <div>
                 <h4 className="font-medium mb-2">What are they?</h4>
                 <p>
-                  New ChatGPT models (o3, o4-mini) add invisible Unicode characters to generated text. 
+                  New ChatGPT models (o3, o4-mini) add invisible Unicode characters to generated text.
                   These characters serve as hidden watermarks to identify AI-generated content.
                 </p>
               </div>
               <div>
                 <h4 className="font-medium mb-2">Why remove them?</h4>
                 <p>
-                  Hidden characters can cause issues when copying text, break formatting, 
+                  Hidden characters can cause issues when copying text, break formatting,
                   and lead to unexpected behavior in text editors and web forms.
                 </p>
               </div>
