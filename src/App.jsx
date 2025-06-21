@@ -95,6 +95,26 @@ const ChatGPTTextCleaner = () => {
     };
   }, []);
 
+  // Auto-read clipboard on page load
+  useEffect(() => {
+    const readClipboard = async () => {
+      try {
+        // Check if clipboard API is supported
+        if (navigator.clipboard && navigator.clipboard.readText) {
+          const text = await navigator.clipboard.readText();
+          if (text.trim()) {
+            setInputText(text);
+          }
+        }
+      } catch (err) {
+        console.log('Clipboard access denied or not available:', err);
+        // Fallback: show a message to user that they can manually paste
+      }
+    };
+
+    readClipboard();
+  }, []); // Empty dependency array - runs only once on mount
+
   // Auto-convert on input change
   useEffect(() => {
     if (inputText.trim()) {
