@@ -1,4 +1,8 @@
 # ChatGPT Text Cleaner
+Message feedback or bug:
+- Issue in this github page
+- Email: [extension.dev.lab@gmail.com](mailto:extension.dev.lab@gmail.com)
+- My X Profile - [https://x.com/byghoster](https://x.com/byghoster)
 
 A React application that removes hidden Unicode characters and watermarks from ChatGPT-generated text.
 
