@@ -95,25 +95,46 @@ const ChatGPTTextCleaner = () => {
     };
   }, []);
 
-  // Auto-read clipboard on page load
-  useEffect(() => {
-    const readClipboard = async () => {
-      try {
-        // Check if clipboard API is supported
-        if (navigator.clipboard && navigator.clipboard.readText) {
-          const text = await navigator.clipboard.readText();
-          if (text.trim()) {
-            setInputText(text);
-          }
+  // Auto-read clipboard function
+  const readClipboard = useCallback(async () => {
+    try {
+      // Check if clipboard API is supported
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text.trim() && text !== inputText) {
+          setInputText(text);
         }
-      } catch (err) {
-        console.log('Clipboard access denied or not available:', err);
-        // Fallback: show a message to user that they can manually paste
       }
+    } catch (err) {
+      console.log('Clipboard access denied or not available:', err);
+    }
+  }, [inputText]);
+
+  // Auto-read clipboard on page load and focus
+  useEffect(() => {
+    // Read clipboard on initial load
+    readClipboard();
+
+    // Read clipboard when window gets focus (user returns to tab)
+    const handleWindowFocus = () => {
+      readClipboard();
     };
 
-    readClipboard();
-  }, []); // Empty dependency array - runs only once on mount
+    // Read clipboard when user clicks anywhere on the page
+    const handlePageClick = () => {
+      readClipboard();
+    };
+
+    // Add event listeners
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('click', handlePageClick);
+
+    // Cleanup event listeners
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('click', handlePageClick);
+    };
+  }, [readClipboard]);
 
   // Auto-convert on input change
   useEffect(() => {
