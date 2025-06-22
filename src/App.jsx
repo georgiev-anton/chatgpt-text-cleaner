@@ -95,20 +95,24 @@ const ChatGPTTextCleaner = () => {
     };
   }, []);
 
+  // Track last processed text to avoid recursion
+  const [lastProcessedText, setLastProcessedText] = useState('');
+
   // Auto-read clipboard function
   const readClipboard = useCallback(async () => {
     try {
       // Check if clipboard API is supported
       if (navigator.clipboard && navigator.clipboard.readText) {
         const text = await navigator.clipboard.readText();
-        if (text.trim() && text !== inputText) {
+        // Only update if text is different from current input AND not the same as last processed
+        if (text.trim() && text !== inputText && text !== lastProcessedText) {
           setInputText(text);
         }
       }
     } catch (err) {
       console.log('Clipboard access denied or not available:', err);
     }
-  }, [inputText]);
+  }, [inputText, lastProcessedText]);
 
   // Auto-read clipboard on page load and focus
   useEffect(() => {
@@ -120,19 +124,12 @@ const ChatGPTTextCleaner = () => {
       readClipboard();
     };
 
-    // Read clipboard when user clicks anywhere on the page
-    const handlePageClick = () => {
-      readClipboard();
-    };
-
     // Add event listeners
     window.addEventListener('focus', handleWindowFocus);
-    document.addEventListener('click', handlePageClick);
 
     // Cleanup event listeners
     return () => {
       window.removeEventListener('focus', handleWindowFocus);
-      document.removeEventListener('click', handlePageClick);
     };
   }, [readClipboard]);
 
@@ -141,7 +138,12 @@ const ChatGPTTextCleaner = () => {
     if (inputText.trim()) {
       const result = cleanText(inputText);
       setCleanupResult(result);
-      handleCopy(result.cleanedText);
+      
+      // Only auto-copy if text actually changed (was cleaned)
+      if (result.totalRemoved > 0) {
+        setLastProcessedText(result.cleanedText);
+        handleCopy(result.cleanedText);
+      }
     } else {
       setCleanupResult(null);
     }
