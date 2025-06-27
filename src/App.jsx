@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Copy, Download, Upload, AlertCircle, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { Copy, Download, Upload, AlertCircle, CheckCircle, Eye, EyeOff, Clipboard, ClipboardPaste } from 'lucide-react';
 import './App.css';
 
 const ChatGPTTextCleaner = () => {
@@ -7,6 +7,7 @@ const ChatGPTTextCleaner = () => {
   const [cleanupResult, setCleanupResult] = useState(null);
   const [showInvisible, setShowInvisible] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Dictionary of problematic characters based on research
   const problematicChars = {
@@ -98,8 +99,47 @@ const ChatGPTTextCleaner = () => {
   // Track last processed text to avoid recursion
   const [lastProcessedText, setLastProcessedText] = useState('');
 
-  // Auto-read clipboard function
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const mobileKeywords = ['mobile', 'android', 'iphone', 'ipad', 'ipod', 'blackberry', 'windows phone'];
+      return mobileKeywords.some(keyword => userAgent.includes(keyword)) || window.innerWidth <= 768;
+    };
+    
+    setIsMobile(checkMobile());
+    
+    // Listen for resize events
+    const handleResize = () => setIsMobile(checkMobile());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Manual paste from clipboard (for mobile)
+  const handlePasteFromClipboard = useCallback(async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text.trim()) {
+          setInputText(text);
+        }
+      }
+    } catch (err) {
+      console.log('Clipboard access denied:', err);
+      // Fallback: focus on textarea for manual paste
+      const textarea = document.querySelector('textarea');
+      if (textarea) {
+        textarea.focus();
+        textarea.select();
+      }
+    }
+  }, []);
+
+  // Auto-read clipboard function (desktop only)
   const readClipboard = useCallback(async () => {
+    // Skip auto-reading on mobile devices
+    if (isMobile) return;
+    
     try {
       // Check if clipboard API is supported
       if (navigator.clipboard && navigator.clipboard.readText) {
@@ -112,7 +152,7 @@ const ChatGPTTextCleaner = () => {
     } catch (err) {
       console.log('Clipboard access denied or not available:', err);
     }
-  }, [inputText, lastProcessedText]);
+  }, [inputText, lastProcessedText, isMobile]);
 
   // Auto-read clipboard on page load and focus
   useEffect(() => {
@@ -220,16 +260,28 @@ const ChatGPTTextCleaner = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-800">Original Text</h2>
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="file"
-                    accept=".txt"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  <Upload className="h-5 w-5 text-gray-500" />
-                  <span className="text-sm text-gray-600">Upload file</span>
-                </label>
+                <div className="flex items-center space-x-3">
+                  {isMobile && (
+                    <button
+                      onClick={handlePasteFromClipboard}
+                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm"
+                      title="Paste from clipboard"
+                    >
+                      <ClipboardPaste className="h-4 w-4" />
+                      <span className="hidden sm:inline">Paste</span>
+                    </button>
+                  )}
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="file"
+                      accept=".txt"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <Upload className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm text-gray-600 hidden sm:inline">Upload</span>
+                  </label>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -287,7 +339,7 @@ const ChatGPTTextCleaner = () => {
                       className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
                     >
                       {copySuccess ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                      <span>{copySuccess ? 'Copied!' : 'Copy'}</span>
+                      <span className="hidden sm:inline">{copySuccess ? 'Copied!' : 'Copy'}</span>
                     </button>
 
                     <button
@@ -295,7 +347,7 @@ const ChatGPTTextCleaner = () => {
                       className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                       <Download className="h-4 w-4" />
-                      <span>Download</span>
+                      <span className="hidden sm:inline">Download</span>
                     </button>
                   </div>
 
@@ -334,6 +386,24 @@ const ChatGPTTextCleaner = () => {
               )}
             </div>
           </div>
+
+          {/* Mobile instructions */}
+          {isMobile && (
+            <div className="mt-8 bg-orange-50 border-l-4 border-orange-400 p-4">
+              <div className="flex items-start">
+                <Clipboard className="h-5 w-5 text-orange-400 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="text-sm text-orange-700">
+                  <p className="font-medium mb-2">Mobile Usage:</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>Use the "Paste" button to paste from clipboard</li>
+                    <li>Text will auto-clean and auto-copy back to clipboard</li>
+                    <li>Or manually paste text using Ctrl+V / Cmd+V</li>
+                    <li>Long-press the cleaned text area to copy result</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Information panel - moved below input/output fields */}
           <div className="mt-8 bg-blue-50 border-l-4 border-blue-400 p-4">
