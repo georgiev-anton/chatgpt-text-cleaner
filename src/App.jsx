@@ -8,9 +8,32 @@ const ChatGPTTextCleaner = () => {
   const [showInvisible, setShowInvisible] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+
+  // localStorage utility functions with cross-browser compatibility
+  const saveToLocalStorage = (key, value) => {
+    try {
+      if (typeof Storage !== 'undefined' && localStorage) {
+        localStorage.setItem(key, JSON.stringify(value));
+      }
+    } catch (error) {
+      console.warn('localStorage not available:', error);
+    }
+  };
+
+  const loadFromLocalStorage = (key, defaultValue) => {
+    try {
+      if (typeof Storage !== 'undefined' && localStorage) {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : defaultValue;
+      }
+    } catch (error) {
+      console.warn('Error loading from localStorage:', error);
+    }
+    return defaultValue;
+  };
   
-  // Cleaning options
-  const [cleaningOptions, setCleaningOptions] = useState({
+  // Default cleaning options
+  const defaultCleaningOptions = {
     // Text case options
     textCase: 'original', // 'original', 'lowercase', 'uppercase', 'sentence'
     
@@ -29,7 +52,12 @@ const ChatGPTTextCleaner = () => {
     
     // Character removal
     removeNonAscii: false
-  });
+  };
+
+  // Cleaning options with localStorage
+  const [cleaningOptions, setCleaningOptions] = useState(() => 
+    loadFromLocalStorage('chatgpt-cleaner-settings', defaultCleaningOptions)
+  );
 
   // Dictionary of problematic characters based on research
   const problematicChars = {
@@ -105,8 +133,6 @@ const ChatGPTTextCleaner = () => {
           cleanedText = cleanedText.replace(regex, '"');
         } else if (char === '\u00AB' || char === '\u00BB' || char === '\u201E') {
           cleanedText = cleanedText.replace(regex, '"');
-        } else if (char === '\u2039' || char === '\u203A' || char === '\u201A') {
-          cleanedText = cleanedText.replace(regex, "'");
         } else if (char === '\u2032' || char === '\u2035') {
           cleanedText = cleanedText.replace(regex, "'");
         } else if (char === '\u2033' || char === '\u2036') {
@@ -191,6 +217,11 @@ const ChatGPTTextCleaner = () => {
 
   // Track last processed text to avoid recursion
   const [lastProcessedText, setLastProcessedText] = useState('');
+
+  // Save settings to localStorage when they change
+  useEffect(() => {
+    saveToLocalStorage('chatgpt-cleaner-settings', cleaningOptions);
+  }, [cleaningOptions]);
 
   // Detect mobile device
   useEffect(() => {
@@ -348,12 +379,158 @@ const ChatGPTTextCleaner = () => {
             </p>
           </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left column - Input */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-800">Original Text</h2>
+                <div className="flex items-center space-x-3">
+                  {isMobile && (
+                    <button
+                      onClick={handlePasteFromClipboard}
+                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm"
+                      title="Paste from clipboard"
+                    >
+                      <ClipboardPaste className="h-4 w-4" />
+                      <span className="hidden sm:inline">Paste</span>
+                    </button>
+                  )}
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="file"
+                      accept=".txt"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    <Upload className="h-5 w-5 text-gray-500" />
+                    <span className="text-sm text-gray-600 hidden sm:inline">Upload</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <textarea
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  placeholder="Paste ChatGPT text here..."
+                  className="w-full h-40 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setShowInvisible(!showInvisible)}
+                    className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-800"
+                  >
+                    {showInvisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    <span>{showInvisible ? 'Hide' : 'Show'} invisible characters</span>
+                  </button>
+
+                  <span className="text-sm text-gray-500">
+                    {inputText.length} characters
+                  </span>
+                </div>
+
+                {showInvisible && inputText && (
+                  <div
+                    className="p-4 bg-gray-50 rounded-lg text-sm border max-h-32 overflow-y-auto"
+                    dangerouslySetInnerHTML={{ __html: visualizeInvisibleChars(inputText) }}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Right column - Result */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-gray-800">Cleaned Text</h2>
+
+              {cleanupResult ? (
+                <div className="space-y-4">
+                  <textarea
+                    value={cleanupResult.cleanedText}
+                    readOnly
+                    className="w-full h-40 p-4 border rounded-lg bg-gray-50 resize-none"
+                  />
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">
+                      {cleanupResult.cleanedText.length} characters
+                    </span>
+                  </div>
+
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => handleCopy(cleanupResult.cleanedText)}
+                      className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      {copySuccess ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      <span className="hidden sm:inline">{copySuccess ? 'Copied!' : 'Copy'}</span>
+                    </button>
+
+                    <button
+                      onClick={handleDownload}
+                      className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span className="hidden sm:inline">Download</span>
+                    </button>
+                  </div>
+
+                  {/* Statistics of removed characters */}
+                  {cleanupResult.totalRemoved > 0 && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <h3 className="font-medium text-green-800 mb-3">
+                        Characters removed: {cleanupResult.totalRemoved}
+                      </h3>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {cleanupResult.removedChars.map((item, index) => (
+                          <div key={index} className="flex justify-between items-center text-sm">
+                            <span className="text-green-700">
+                              {item.name} ({item.unicode})
+                            </span>
+                            <span className="bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs">
+                              {item.count}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {cleanupResult.totalRemoved === 0 && (
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                      <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
+                      <p className="text-gray-600">No problematic characters found!</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="h-40 bg-gray-50 rounded-lg flex items-center justify-center text-gray-500">
+                  <p>Cleaned text will appear here</p>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Cleaning Options Panel */}
           <div className="mb-8 bg-gray-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-              <Settings className="h-5 w-5 mr-2" />
-              Настройки очистки
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                <Settings className="h-5 w-5 mr-2" />
+                Настройки очистки
+              </h3>
+              <div className="flex items-center space-x-4">
+                <span className="text-xs text-gray-500">
+                  Настройки сохраняются автоматически
+                </span>
+                <button
+                  onClick={() => setCleaningOptions(defaultCleaningOptions)}
+                  className="text-sm text-blue-600 hover:text-blue-700 underline"
+                  title="Сбросить к настройкам по умолчанию"
+                >
+                  Сбросить
+                </button>
+              </div>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Text Case Options */}
@@ -506,138 +683,6 @@ const ChatGPTTextCleaner = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left column - Input */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-800">Original Text</h2>
-                <div className="flex items-center space-x-3">
-                  {isMobile && (
-                    <button
-                      onClick={handlePasteFromClipboard}
-                      className="flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm"
-                      title="Paste from clipboard"
-                    >
-                      <ClipboardPaste className="h-4 w-4" />
-                      <span className="hidden sm:inline">Paste</span>
-                    </button>
-                  )}
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="file"
-                      accept=".txt"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                    <Upload className="h-5 w-5 text-gray-500" />
-                    <span className="text-sm text-gray-600 hidden sm:inline">Upload</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <textarea
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder="Paste ChatGPT text here..."
-                  className="w-full h-40 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => setShowInvisible(!showInvisible)}
-                    className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-800"
-                  >
-                    {showInvisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    <span>{showInvisible ? 'Hide' : 'Show'} invisible characters</span>
-                  </button>
-
-                  <span className="text-sm text-gray-500">
-                    {inputText.length} characters
-                  </span>
-                </div>
-
-                {showInvisible && inputText && (
-                  <div
-                    className="p-4 bg-gray-50 rounded-lg text-sm border max-h-32 overflow-y-auto"
-                    dangerouslySetInnerHTML={{ __html: visualizeInvisibleChars(inputText) }}
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* Right column - Result */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-gray-800">Cleaned Text</h2>
-
-              {cleanupResult ? (
-                <div className="space-y-4">
-                  <textarea
-                    value={cleanupResult.cleanedText}
-                    readOnly
-                    className="w-full h-40 p-4 border rounded-lg bg-gray-50 resize-none"
-                  />
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-500">
-                      {cleanupResult.cleanedText.length} characters
-                    </span>
-                  </div>
-
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={() => handleCopy(cleanupResult.cleanedText)}
-                      className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      {copySuccess ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                      <span className="hidden sm:inline">{copySuccess ? 'Copied!' : 'Copy'}</span>
-                    </button>
-
-                    <button
-                      onClick={handleDownload}
-                      className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      <Download className="h-4 w-4" />
-                      <span className="hidden sm:inline">Download</span>
-                    </button>
-                  </div>
-
-                  {/* Statistics of removed characters */}
-                  {cleanupResult.totalRemoved > 0 && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <h3 className="font-medium text-green-800 mb-3">
-                        Characters removed: {cleanupResult.totalRemoved}
-                      </h3>
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {cleanupResult.removedChars.map((item, index) => (
-                          <div key={index} className="flex justify-between items-center text-sm">
-                            <span className="text-green-700">
-                              {item.name} ({item.unicode})
-                            </span>
-                            <span className="bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs">
-                              {item.count}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {cleanupResult.totalRemoved === 0 && (
-                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
-                      <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                      <p className="text-gray-600">No problematic characters found!</p>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="h-40 bg-gray-50 rounded-lg flex items-center justify-center text-gray-500">
-                  <p>Cleaned text will appear here</p>
-                </div>
-              )}
-            </div>
-          </div>
-
           {/* Mobile instructions */}
           {isMobile && (
             <div className="mt-8 bg-orange-50 border-l-4 border-orange-400 p-4">
@@ -666,8 +711,8 @@ const ChatGPTTextCleaner = () => {
                   <li>Invisible spaces (Narrow No-Break Space, Zero-Width Space)</li>
                   <li>Special dashes (Em Dash, En Dash) → replaces with regular dash</li>
                   <li>Smart quotes → replaces with standard quotes</li>
-                  <li>Angle quotes (« », ‹ ›) → replaces with standard quotes</li>
-                  <li>Special quotation marks („ ‚ ′ ″) → replaces with standard quotes</li>
+                  <li>Angle quotes (« ») → replaces with standard quotes</li>
+                  <li>Special quotation marks („ ′ ″) → replaces with standard quotes</li>
                   <li>Directional characters (Left-to-Right Mark, Right-to-Left Mark)</li>
                   <li>Other hidden Unicode marker characters</li>
                 </ul>
