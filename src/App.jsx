@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Copy, Download, Upload, AlertCircle, CheckCircle, Eye, EyeOff, Clipboard, ClipboardPaste } from 'lucide-react';
+import { Copy, Download, Upload, AlertCircle, CheckCircle, Eye, EyeOff, Clipboard, ClipboardPaste, Settings, Type, Space, FileText } from 'lucide-react';
 import './App.css';
 
 const ChatGPTTextCleaner = () => {
@@ -8,6 +8,28 @@ const ChatGPTTextCleaner = () => {
   const [showInvisible, setShowInvisible] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Cleaning options
+  const [cleaningOptions, setCleaningOptions] = useState({
+    // Text case options
+    textCase: 'original', // 'original', 'lowercase', 'uppercase', 'sentence'
+    
+    // Space handling
+    removeExtraSpaces: true,
+    removeAllSpaces: false,
+    
+    // Line breaks
+    removeLineBreaks: false,
+    normalizeLineBreaks: false,
+    
+    // Additional cleaning
+    removeNumbers: false,
+    removePunctuation: false,
+    removeSpecialChars: false,
+    
+    // Character removal
+    removeNonAscii: false
+  });
 
   // Dictionary of problematic characters based on research
   const problematicChars = {
@@ -44,10 +66,18 @@ const ChatGPTTextCleaner = () => {
     '\u2019': 'Right Single Quotation Mark',
     '\u201C': 'Left Double Quotation Mark',
     '\u201D': 'Right Double Quotation Mark',
-    '\u2026': 'Horizontal Ellipsis'
+    '\u2026': 'Horizontal Ellipsis',
+    // Additional quotes
+    '\u00AB': 'Left-Pointing Double Angle Quotation Mark («)',
+    '\u00BB': 'Right-Pointing Double Angle Quotation Mark (»)',
+    '\u201E': 'Double Low-9 Quotation Mark („)',
+    '\u2032': 'Prime (′)',
+    '\u2033': 'Double Prime (″)',
+    '\u2035': 'Reversed Prime (‵)',
+    '\u2036': 'Reversed Double Prime (‶)'
   };
 
-  const cleanText = useCallback((text) => {
+  const cleanText = useCallback((text, options = cleaningOptions) => {
     let cleanedText = text;
     const removedChars = [];
     let totalRemoved = 0;
@@ -73,6 +103,14 @@ const ChatGPTTextCleaner = () => {
           cleanedText = cleanedText.replace(regex, "'");
         } else if (char === '\u201C' || char === '\u201D') {
           cleanedText = cleanedText.replace(regex, '"');
+        } else if (char === '\u00AB' || char === '\u00BB' || char === '\u201E') {
+          cleanedText = cleanedText.replace(regex, '"');
+        } else if (char === '\u2039' || char === '\u203A' || char === '\u201A') {
+          cleanedText = cleanedText.replace(regex, "'");
+        } else if (char === '\u2032' || char === '\u2035') {
+          cleanedText = cleanedText.replace(regex, "'");
+        } else if (char === '\u2033' || char === '\u2036') {
+          cleanedText = cleanedText.replace(regex, '"');
         } else if (char === '\u2026') {
           cleanedText = cleanedText.replace(regex, '...');
         } else {
@@ -86,15 +124,70 @@ const ChatGPTTextCleaner = () => {
       }
     });
 
-    // Normalize multiple spaces
-    cleanedText = cleanedText.replace(/[ \t\f\v]+/g, ' ').trim();
+    // Apply additional cleaning options
+    
+    // Remove numbers
+    if (options.removeNumbers) {
+      cleanedText = cleanedText.replace(/\d/g, '');
+    }
+    
+    // Remove punctuation
+    if (options.removePunctuation) {
+      cleanedText = cleanedText.replace(/[^\w\s\u0400-\u04FF]/g, ''); // Keep Cyrillic
+    }
+    
+    // Remove special characters (keep only letters, numbers, spaces)
+    if (options.removeSpecialChars) {
+      cleanedText = cleanedText.replace(/[^\w\s\u0400-\u04FF]/g, '');
+    }
+    
+    // Remove non-ASCII characters
+    if (options.removeNonAscii) {
+      cleanedText = cleanedText.replace(/[^\x00-\x7F]/g, '');
+    }
+    
+    // Handle spaces
+    if (options.removeAllSpaces) {
+      cleanedText = cleanedText.replace(/\s/g, '');
+    } else if (options.removeExtraSpaces) {
+      cleanedText = cleanedText.replace(/[ \t\f\v]+/g, ' ').trim();
+    }
+    
+    // Handle line breaks
+    if (options.removeLineBreaks) {
+      cleanedText = cleanedText.replace(/\r?\n/g, ' ');
+    } else if (options.normalizeLineBreaks) {
+      cleanedText = cleanedText.replace(/\r?\n{2,}/g, '\n\n');
+    }
+    
+    // Apply text case transformation
+    switch (options.textCase) {
+      case 'lowercase':
+        cleanedText = cleanedText.toLowerCase();
+        break;
+      case 'uppercase':
+        cleanedText = cleanedText.toUpperCase();
+        break;
+      case 'sentence':
+        cleanedText = cleanedText.toLowerCase().replace(/(^\w|\.\s+\w)/g, (match) => match.toUpperCase());
+        break;
+      case 'original':
+      default:
+        // Keep original case
+        break;
+    }
+    
+    // Final cleanup if not removing all spaces
+    if (!options.removeAllSpaces && options.removeExtraSpaces) {
+      cleanedText = cleanedText.replace(/[ \t\f\v]+/g, ' ').trim();
+    }
 
     return {
       cleanedText,
       removedChars: removedChars.filter(item => item.count > 0),
       totalRemoved
     };
-  }, []);
+  }, [cleaningOptions]);
 
   // Track last processed text to avoid recursion
   const [lastProcessedText, setLastProcessedText] = useState('');
@@ -248,11 +341,169 @@ const ChatGPTTextCleaner = () => {
               ChatGPT Text Cleaner
             </h1>
             <p className="text-gray-600 text-lg">
-              Remove hidden Unicode characters and watermarks from ChatGPT-generated text
+              Удаляет скрытые Unicode символы и водяные знаки из текста, сгенерированного ChatGPT
             </p>
             <p className="text-gray-600 text-lg">
-              Message feedback or bug: <a href={'https://x.com/byghoster'}>My X Profile - https://x.com/byghoster</a>
+              Сообщения об ошибках: <a href={'https://x.com/byghoster'}>My X Profile - https://x.com/byghoster</a>
             </p>
+          </div>
+
+          {/* Cleaning Options Panel */}
+          <div className="mb-8 bg-gray-50 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <Settings className="h-5 w-5 mr-2" />
+              Настройки очистки
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Text Case Options */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-700 flex items-center">
+                  <Type className="h-4 w-4 mr-2" />
+                  Регистр текста
+                </h4>
+                <div className="space-y-2">
+                  {[
+                    { value: 'original', label: 'Исходный' },
+                    { value: 'lowercase', label: 'Нижний регистр' },
+                    { value: 'uppercase', label: 'ВЕРХНИЙ РЕГИСТР' },
+                    { value: 'sentence', label: 'Первая заглавная' }
+                  ].map((option) => (
+                    <label key={option.value} className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="textCase"
+                        value={option.value}
+                        checked={cleaningOptions.textCase === option.value}
+                        onChange={(e) => setCleaningOptions(prev => ({ ...prev, textCase: e.target.value }))}
+                        className="text-blue-600"
+                      />
+                      <span className="text-sm text-gray-600">{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Space Handling */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-700 flex items-center">
+                  <Space className="h-4 w-4 mr-2" />
+                  Пробелы
+                </h4>
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={cleaningOptions.removeExtraSpaces}
+                      onChange={(e) => setCleaningOptions(prev => ({ 
+                        ...prev, 
+                        removeExtraSpaces: e.target.checked,
+                        removeAllSpaces: e.target.checked ? prev.removeAllSpaces : false
+                      }))}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-gray-600">Удалить лишние пробелы</span>
+                  </label>
+                  
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={cleaningOptions.removeAllSpaces}
+                      onChange={(e) => setCleaningOptions(prev => ({ 
+                        ...prev, 
+                        removeAllSpaces: e.target.checked,
+                        removeExtraSpaces: e.target.checked ? false : prev.removeExtraSpaces
+                      }))}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-gray-600">Удалить все пробелы</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Line Breaks */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-700 flex items-center">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Переносы строк
+                </h4>
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={cleaningOptions.removeLineBreaks}
+                      onChange={(e) => setCleaningOptions(prev => ({ 
+                        ...prev, 
+                        removeLineBreaks: e.target.checked,
+                        normalizeLineBreaks: e.target.checked ? false : prev.normalizeLineBreaks
+                      }))}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-gray-600">Удалить переносы строк</span>
+                  </label>
+                  
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={cleaningOptions.normalizeLineBreaks}
+                      onChange={(e) => setCleaningOptions(prev => ({ 
+                        ...prev, 
+                        normalizeLineBreaks: e.target.checked,
+                        removeLineBreaks: e.target.checked ? false : prev.removeLineBreaks
+                      }))}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-gray-600">Нормализовать переносы</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Additional Cleaning */}
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-700">Дополнительная очистка</h4>
+                <div className="space-y-2">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={cleaningOptions.removeNumbers}
+                      onChange={(e) => setCleaningOptions(prev => ({ ...prev, removeNumbers: e.target.checked }))}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-gray-600">Удалить цифры</span>
+                  </label>
+                  
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={cleaningOptions.removePunctuation}
+                      onChange={(e) => setCleaningOptions(prev => ({ ...prev, removePunctuation: e.target.checked }))}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-gray-600">Удалить знаки препинания</span>
+                  </label>
+                  
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={cleaningOptions.removeSpecialChars}
+                      onChange={(e) => setCleaningOptions(prev => ({ ...prev, removeSpecialChars: e.target.checked }))}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-gray-600">Удалить спецсимволы</span>
+                  </label>
+                  
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={cleaningOptions.removeNonAscii}
+                      onChange={(e) => setCleaningOptions(prev => ({ ...prev, removeNonAscii: e.target.checked }))}
+                      className="text-blue-600"
+                    />
+                    <span className="text-sm text-gray-600">Только ASCII символы</span>
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -415,6 +666,8 @@ const ChatGPTTextCleaner = () => {
                   <li>Invisible spaces (Narrow No-Break Space, Zero-Width Space)</li>
                   <li>Special dashes (Em Dash, En Dash) → replaces with regular dash</li>
                   <li>Smart quotes → replaces with standard quotes</li>
+                  <li>Angle quotes (« », ‹ ›) → replaces with standard quotes</li>
+                  <li>Special quotation marks („ ‚ ′ ″) → replaces with standard quotes</li>
                   <li>Directional characters (Left-to-Right Mark, Right-to-Left Mark)</li>
                   <li>Other hidden Unicode marker characters</li>
                 </ul>
